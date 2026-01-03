@@ -13,3 +13,5 @@
 ^contributors\.R$
 ^contributors\.csv$
 ^data-raw$
+^doc$
+^Meta$

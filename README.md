@@ -1,74 +1,118 @@
+---
+output: github_document
+---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
+
 
 # labeler <img src='man/figures/logo.png' align="right" height="138" />
 
 <!-- badges: start -->
-
-[![Project Status: WIP – Initial development is in progress, but there
-has not yet been a stable, usable release suitable for the
-public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
-[![Lifecycle:
-experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
-[![R build
-status](https://github.com/adatar-do/labeler/workflows/R-CMD-check/badge.svg)](https://github.com/adatar-do/labeler/actions)
-[![Codecov test
-coverage](https://codecov.io/gh/adatar-do/labeler/branch/main/graph/badge.svg)](https://codecov.io/gh/adatar-do/labeler?branch=main)
-[![CRAN
-status](https://www.r-pkg.org/badges/version/labeler)](https://CRAN.R-project.org/package=labeler)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
+[![R build status](https://github.com/adatar-do/labeler/workflows/R-CMD-check/badge.svg)](https://github.com/adatar-do/labeler/actions)
+[![Codecov test coverage](https://codecov.io/gh/adatar-do/labeler/branch/main/graph/badge.svg)](https://codecov.io/gh/adatar-do/labeler?branch=main)
 <!-- badges: end -->
 
-This package contains functions to assign and use data labels in an easy
-and efficient way. With an easy to share structure.
+**Finally, labelled data that survives, travels, and scales.**
+
+`labeler` is a dictionary-based approach to data labels in R that solves the three biggest pain points with labelled data:
+
+| Pain Point | Traditional Approach | labeler Solution |
+|------------|----------------------|------------------|
+| **Labels disappear** after operations | Re-read from SPSS/Stata or re-assign manually | Store in Dict, re-apply anytime |
+| **Can't share** label definitions | Embedded in files, copy-paste | Export to JSON, store in database |
+| **R-only** | No interoperability | JSON schema works with Python, JS, etc. |
+
+## Quick Example
+
+```r
+library(labeler)
+
+# Define your dictionary once
+my_dict <- Dict(
+  sex = list(label = "Sex", labels = c("Male" = 1, "Female" = 2)),
+  age = list(label = "Age in years"),
+  metadata = list(name = "survey_2024")
+)
+
+# Apply to any data frame
+labeled_df <- set_Dict(raw_data, my_dict)
+
+# Share via JSON
+to_json(my_dict, "survey_dict.json")
+
+# Or store in database for team access
+db_save_dict(con, my_dict)
+```
 
 ## Installation
 
-<!-- You can install the released version of labeler from [CRAN](https://CRAN.R-project.org) with: -->
-<!-- ``` r -->
-<!-- install.packages("labeler") -->
-<!-- ``` -->
+Install from [Adatar's r-universe](https://adatar.r-universe.dev):
 
-`labeler` is not available in CRAN.
-
-But you can install the development version from
-[GitHub](https://github.com/) with:
-
-``` r
-tryCatch(
-  library(remotes),
-  error = function(e){
-    install.packages('remotes')
-  }
+```r
+install.packages(
+  "labeler", 
+  repos = c("https://adatar-do.r-universe.dev", "https://cloud.r-project.org")
 )
+```
+
+Or from GitHub:
+
+```r
 remotes::install_github("adatar-do/labeler")
 ```
 
+## Key Features
+
+### 📦 Dictionary-Based Labels
+
+Labels live in a `Dict` object, separate from your data. Lost labels after a `merge()`? Just re-apply:
+
+```r
+result <- merge(df1, df2)  # labels gone!
+result <- set_Dict(result, my_dict)  # labels back!
+```
+
+### 📤 JSON Export/Import
+
+Share dictionaries across projects, teams, or languages:
+
+```r
+to_json(my_dict, "labels.json")
+restored <- from_json("labels.json")
+```
+
+### 🗄️ Database Storage
+
+Centralize dictionaries for your entire organization:
+```r
+db_save_dict(con, my_dict)
+db_list_dicts(con)
+team_dict <- db_load_dict(con, "company_survey")
+```
+
+Works with PostgreSQL, MySQL, SQLite, SQL Server—any DBI-compatible database.
+
+### 🐍 Python Interoperability
+
+The JSON schema is language-agnostic. Use the same dictionary in R and Python:
+
+```python
+import json
+with open("labels.json") as f:
+    dict_data = json.load(f)
+# Access: dict_data["variables"]["sex"]["labels"]
+```
+
+## Learn More
+
+📖 **[Get Started](articles/labeler.html)** — Full tutorial with examples
+
+📚 **[Function Reference](reference/index.html)** — All functions documented
+
 ## Contributing
 
-Have a feedback or want to contribute?
+Feedback or contributions welcome! See [contributing guidelines](https://adatar-do.github.io/labeler/CONTRIBUTING.html).
 
-Please take a look at the [contributing
-guidelines](https://adatar-do.github.io/labeler/CONTRIBUTING.html)
-before filing an issue or pull request.
-
-Please note that the `labeler` project is released with a [Contributor
-Code of
-Conduct](https://contributor-covenant.org/version/2/0/CODE_OF_CONDUCT.html).
-By contributing to this project, you agree to abide by its terms.
-
-<hr/>
-
-<a href="./articles/labeler.html">
-  <svg width="50%" height="30" xmlns="http://www.w3.org/2000/svg" style="display: block; margin: auto;">
-  <linearGradient id="a" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity="0.2"/>
-  <stop offset="1" stop-opacity="0.1"/>
-    </linearGradient>
-    <rect rx="4" x="0" width="50%" height="30" fill="#555"/>
-    <rect rx="4" x="0" width="50%" height="30" fill="#00a65a"/>
-    <rect rx="4" width="50%" height="30" fill="url(#a)"/>
-    <g fill="#fff" text-anchor="middle" font-size="18">
-    <text x="25%" y="21">Get started!</text>
-    </g>
-    </svg>
-    </a>
+This project follows the [Contributor Code of Conduct](https://contributor-covenant.org/version/2/0/CODE_OF_CONDUCT.html).

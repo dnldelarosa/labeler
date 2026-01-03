@@ -16,31 +16,53 @@ knitr::opts_chunk$set(
 library(labeler)
 ```
 
-## Labelled data in R
+## The Problem with Labelled Data in R
 
-Historically, software like SPSS, SAS or Stata have worked with labelled data. The closest function in R base corresponds to factors, which actually work in reverse, assigning values to text variables with few distinct values.
+Historically, software like SPSS, SAS, and Stata have worked seamlessly with labelled data. In R, the closest equivalent is factors, which actually work in reverse—assigning numeric codes to text values.
 
-Being able to work with labelled data is one of the features that R users who come from the previously mentioned systems miss the most. Especially when processing survey and census data.
+The R ecosystem has several packages for labelled data: `haven`, `labelled`, and `sjlabelled`. However, they all share common limitations:
 
-In the R ecosystem there are 3 fundamental packages for working with labelled data `haven`, `labelled` and `sjlabelled`[^1]. However, these packages work similarly, expecting pre-labelled data or manual label assignment for each variable.
+| Limitation | Impact |
+|------------|--------|
+| **Labels tied to files** | Must read from SPSS/Stata files or manually re-assign labels |
+| **Lost on operations** | Many R operations strip label attributes |
+| **No sharing mechanism** | Can't easily share label definitions across projects or teams |
+| **No database support** | Labels live only in memory or specific file formats |
+| **R-only** | No interoperability with Python or other languages |
 
-[^1]: See <https://www.pipinghotdata.com/posts/2020-12-23-leveraging-labelled-data-in-r/>
+## Why labeler?
 
-Manual labelling becomes cumbersome with numerous variables, especially as some R operations remove attributes, requiring repeated label assignments. 
+**`labeler` solves these problems with a dictionary-based approach:**
 
-> **`labeler` offers a new scheme based on dictionaries and delayed, semi-automated label application.**
+```{r, echo=FALSE}
+comparison <- data.frame(
+  Feature = c(
+    "Shareable label definitions",
+    "Survives R operations",
+    "JSON export/import",
+    "Database storage",
+    "R/Python interoperability",
+    "Auto-generate from data"
+  ),
+  haven = c("❌", "❌", "❌", "❌", "❌", "❌"),
+  labelled = c("❌", "❌", "❌", "❌", "❌", "✅"),
+  sjlabelled = c("❌", "❌", "❌", "❌", "❌", "❌"),
+  labeler = c("✅", "✅", "✅", "✅", "✅", "✅")
+)
+knitr::kable(comparison, align = "lcccc")
+```
 
-Excelente, con esta nueva función `gen_Dict()`, la sección de *The dictionary* del vignette se puede mejorar aún más, incorporando la capacidad de generar diccionarios automáticamente a partir de dataframes etiquetados. Aquí te propongo la versión revisada de esa sección:
+> **Key insight:** Labels are defined once in a `Dict` object, stored externally (JSON or database), and applied on-demand. Lost labels? Just re-apply the dictionary.
 
-## The dictionary
+---
 
-The dictionary is a `Dict` object created with the `Dict()` function. It contains a list of variables, each a list with:
+## Creating a Dictionary
 
-* **label:** A character string describing the variable (can include a short name before "||" and a long description after).
-* **labels:** A named vector or list defining value labels.
-* **dtype:** (Optional) A character string specifying the desired data type.
+A `Dict` is created with the `Dict()` function. Each variable definition includes:
 
-A valid dictionary is created as follows:
+- **label:** Description (optionally with short name before "||")
+- **labels:** Named vector for value labels
+- **dtype:** (Optional) Target data type
 
 ```{r}
 dict <- Dict(
@@ -53,76 +75,42 @@ dict <- Dict(
     label = "Age || Age of the person",
     dtype = "integer"
   ),
-  SEX = list(
-    label = "Sex || Gender of the person",
-    labels = c("Man" = 1, "Woman" = 2),
-    dtype = "integer"
-  ),
   Married = list(
-    label = "Marital Status || Indicates whether or not the person is married",
-    labels = c("No" = 0, "Yes" = 1),
-    dtype = "integer"
+    label = "Marital Status || Is the person married?",
+    labels = c("No" = 0, "Yes" = 1)
   ),
-  metadata = list(name = "mydata")
+  metadata = list(name = "survey_data")
 )
 
 dict
 ```
 
-### Building a dictionary automatically
+### Auto-generate from labelled data
 
-If you're working with an already labelled dataset, `labeler` can automatically generate a dictionary using the `gen_Dict()` function. This simplifies the process considerably.
+If you already have labelled data, generate a dictionary automatically:
 
 ```{r}
 lbl_df <- set_Dict(lbl_df, lbl_df_dict)
-str(lbl_df)
-```
-
-```{r}
-generated_dict <- gen_Dict(lbl_df) 
+generated_dict <- gen_Dict(lbl_df)
 str(generated_dict)
 ```
 
-### Converting from old dictionaries
-
-You can convert old dictionaries to the new format using `as.Dict()`. However, linked labels (`link::`) are not supported and will be ignored with a warning.
-
-```{r}
-old_dict <- list(
-  GENDER = list(
-    lab = "Gender of the person",
-    labs = c("Man" = 1, "Woman" = 2)
-  ),
-  AGE = list(
-    lab = "Age of the person"
-  ),
-  SEX = list(
-    lab = "link::GENDER",  # This will generate a warning
-    labs = "link::GENDER" # This will generate a warning
-  )
-)
-
-new_dict <- as.Dict(old_dict, metadata = list(name = "converted_dict"))
-new_dict
-```
-
-### Browsing the dictionary
-
-Use `dict_browser()` to interactively explore the dictionary:
+### Browse interactively
 
 ```{r eval=FALSE}
-dict_browser(dict) 
+dict_browser(dict)
 ```
 
-## Setting the labels
+---
 
-`set_Dict()` applies the dictionary to a data frame.
+## Applying Labels
+
+Use `set_Dict()` to apply labels to a data frame:
 
 ```{r}
 mydata <- data.frame(
   GENDER = c(rep(1, 5), rep(2, 5)),
-  AGE = c(seq(1, 30, 3)),
-  SEX = c(rep(1, 5), rep(2, 5)),
+  AGE = seq(1, 30, 3),
   Married = c(rep(0, 4), rep(1, 6))
 )
 
@@ -130,40 +118,126 @@ labeled_data <- set_Dict(mydata, dict)
 str(labeled_data)
 ```
 
-Subset application:
+Apply to specific variables only:
 
 ```{r}
-labeled_data_subset <- set_Dict(mydata, dict, subset = c("GENDER"))
-str(labeled_data_subset)
-
-labeled_data_case_insensitive <- set_Dict(mydata, dict, dtypes = FALSE) # dtypes are applied in set_Dict, not in with_Dict
-str(labeled_data_case_insensitive)
+partial <- set_Dict(mydata, dict, subset = c("GENDER"))
+str(partial)
 ```
 
-## Using the labels
+---
 
-`with_Dict()` converts labelled values to their labels and/or replaces column names with variable labels:
+## Using Labels
+
+`with_Dict()` converts codes to labels and/or renames columns:
 
 ```{r}
-# Convert values to labels
-data_with_labels <- with_Dict(mydata, dict, use_labels = TRUE)
-print(data_with_labels)
-
-# Replace column names with labels
-data_with_label_names <- with_Dict(mydata, dict, use_label = TRUE, dtypes = FALSE) 
-print(data_with_label_names)
-
-# Combine both operations
-data_with_both <- with_Dict(mydata, dict, use_label = TRUE, use_labels = TRUE, dtypes = FALSE)
-print(data_with_both)
+# Values → Labels
+with_Dict(mydata, dict, use_labels = TRUE, use_label = FALSE)
 ```
 
-Piping with dplyr:
+```{r}
+# Column names → Variable labels
+with_Dict(mydata, dict, use_label = TRUE, use_labels = FALSE)
+```
+
+Works great with dplyr:
 
 ```{r}
-mydata %>% 
+mydata %>%
   set_Dict(dict, label_type = "name") %>%
-  dplyr::group_by(GENDER, Married) %>% 
-  dplyr::count() %>% 
+  dplyr::group_by(GENDER, Married) %>%
+  dplyr::count() %>%
   with_Dict(use_labels = TRUE)
 ```
+
+---
+
+## Sharing Dictionaries: JSON
+
+Export your dictionary as JSON—readable by R, Python, JavaScript, or any language:
+
+```{r}
+json_str <- to_json(dict)
+cat(json_str)
+```
+
+Save to file:
+
+```{r eval=FALSE}
+to_json(dict, path = "survey_dict.json")
+```
+  
+Import from file:
+
+```{r eval=FALSE}
+my_dict <- from_json("survey_dict.json")
+```
+
+### JSON Schema
+
+The JSON follows a versioned schema for future compatibility:
+
+```json
+{
+  "$schema": "https://labeler.adatar.do/dict-schema/v1",
+  "metadata": { "name": "survey_data" },
+  "variables": {
+    "GENDER": { "label": "...", "labels": {...} }
+  }
+}
+```
+
+---
+
+## Storing Dictionaries: Database
+
+Store dictionaries in **any SQL database** via DBI. This enables:
+
+- **Team collaboration** — Single source of truth
+- **Version control alternative** — Centralized dictionary management
+- **Cross-project reuse** — One dictionary, many projects
+- **R/Python sharing** — Both languages can read the same table
+
+```{r, eval=FALSE}
+library(DBI)
+
+# Connect to database (PostgreSQL, MySQL, SQLite, SQL Server, etc.)
+con <- dbConnect(RSQLite::SQLite(), "my_project.sqlite")
+
+# Save dictionary (table auto-created on first use)
+db_save_dict(con, dict)
+
+# List all dictionaries
+db_list_dicts(con)
+
+# Load a dictionary
+my_dict <- db_load_dict(con, "survey_data")
+
+# Update existing dictionary
+db_save_dict(con, updated_dict, overwrite = TRUE)
+
+# Delete
+db_delete_dict(con, "old_dict")
+
+dbDisconnect(con)
+```
+
+The `labeler_dicts` table uses simple TEXT columns for maximum compatibility across database systems.
+
+---
+
+## Summary
+
+| Task | Function |
+|------|----------|
+| Create dictionary | `Dict()` |
+| Generate from data | `gen_Dict()` |
+| Apply to data | `set_Dict()` |
+| Use labels | `with_Dict()` |
+| Export to JSON | `to_json()` |
+| Import from JSON | `from_json()` |
+| Save to database | `db_save_dict()` |
+| Load from database | `db_load_dict()` |
+
+**labeler** makes labelled data in R truly portable, shareable, and interoperable.
