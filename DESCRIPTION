@@ -28,6 +28,7 @@ Imports:
     rlang
 Suggests:
     knitr,
+    DBI,
     DT,
     labelled,
     cli
