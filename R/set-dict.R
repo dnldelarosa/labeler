@@ -17,7 +17,7 @@
 #'
 #' @examples
 #' \dontrun{
-#'     labeled_data <- set_Dict(lbl_df, lbl_df_dict)
+#' labeled_data <- set_Dict(lbl_df, lbl_df_dict)
 #' }
 set_Dict <- function(tbl, dict, subset = NULL, dtypes = TRUE, label_type = c("full", "label", "name")) {
   # browser()
@@ -31,19 +31,17 @@ set_Dict <- function(tbl, dict, subset = NULL, dtypes = TRUE, label_type = c("fu
 
   if (!is.null(subset)) {
     if (!is.character(subset)) stop("subset must be a character vector of variable names.")
+    # Filter to only variables that exist in both tbl and dict
+    subset <- intersect(subset, names(tbl))
   } else {
-    subset <- names(dict[!names(dict) %in% c("metadata")])
+    # Only apply to variables that exist in both dict and tbl
+    dict_vars <- names(dict[!names(dict) %in% c("metadata")])
+    subset <- intersect(dict_vars, names(tbl))
   }
 
-  missing_vars <- character()
   for (variable in subset) {
-    if (!variable %in% names(tbl)) {
-      missing_vars <- c(missing_vars, variable)
-      next
-    }
-
     if (dtypes) {
-      tbl <- .apply_Dict_types(tbl, dict, subset)
+      tbl <- .apply_Dict_types(tbl, dict, variable)
     }
     .label <- dict[[variable]][["label"]]
     .label <- switch(label_type,
@@ -57,10 +55,6 @@ set_Dict <- function(tbl, dict, subset = NULL, dtypes = TRUE, label_type = c("fu
       labels = .labels,
       label = .label
     )
-  }
-
-  if (length(missing_vars) > 0) {
-    warning("Variables ", paste0(missing_vars, collapse = ", "), " not found in tbl. They will be ignored.")
   }
 
   tbl
@@ -89,4 +83,3 @@ set_Dict <- function(tbl, dict, subset = NULL, dtypes = TRUE, label_type = c("fu
 #   lbl_df |> set_Dict(lbl_df_dict) |> dplyr::pull(sex) |> str()
 #   lbl_df |> set_Dict(lbl_df_dict) |> dplyr::select(sex)
 #   lbl_df |> set_Dict(lbl_df_dict) |> dplyr::count(sex) |> sjlabelled::label_to_colnames() |> sjlabelled::as_label()
-
